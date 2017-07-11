@@ -1,7 +1,7 @@
 - name: Set up for cakephp
   hosts: all
   become: yes
-  # gather_facts: no
+  gather_facts: no
   tasks:
     - name: Upgrade all packages
       yum:
@@ -23,7 +23,7 @@
         name: https://mirror.webtatic.com/yum/el7/webtatic-release.rpm
         state: present
 
-    - name: Install php-fpm and deps
+    - name: Install php-fpm and deps extensions
       yum:
         name: "{{ item }}"
         state: present
@@ -37,11 +37,29 @@
       - php70w-mcrypt
       - php70w-opcache
       - php70w-xml
+      - php70w-intl.x86_64
+
+    - name: Install composer
+      shell: curl -sS https://getcomposer.org/installer | php -- --install-dir=/usr/bin
+      args:
+        creates: /usr/bin/composer.phar
+
+    - name: Move composer.phar to composer
+      command: mv /usr/bin/composer.phar /usr/bin/composer
+      args:
+        creates: /usr/bin/composer
 
     - name: Install apache
       yum:
         name: httpd
         state: latest
+
+    - name: Set web root permission
+      file:
+        path: /var/www/html
+        owner: apache
+        group: apache
+        recurse: true
 
     - name: Start apache and enabled
       service:
@@ -49,16 +67,33 @@
         state: started
         enabled: yes
 
-    - name: Install mysql
+    - name: Install mariadb
       yum:
         name: "{{ item }}"
         enablerepo: remi,epel
         state: installed
-        with_items:
-         - mysql-server
-         - MySQL-python
-        notify:
-          - start mysql
+      with_items:
+        - mariadb
+        - mariadb-server
+        - MySQL-python
+
+    - name: start mariadb
+      service:
+        name: mariadb
+        state: started
+        enabled: yes
+
+    - name: Create DB "my_database"
+      mysql_db:
+        name: my_database
+        state: present
+
+    - name: Set root user password
+      mysql_user:
+        name: root
+        password: root
+        host: localhost
+        state: present
 
     - name: Make phpmyadmin Directory
       file:
@@ -72,16 +107,21 @@
         remote_src: True
 
     - name: Move phpmyadmin
-      command: mv /var/www/phpmyadmin/phpMyAdmin-4.7.2-all-languages/* /var/www/phpmyadmin
+      shell: mv /var/www/phpmyadmin/phpMyAdmin-4.7.2-all-languages/* /var/www/phpmyadmin
 
-  handlers:
+    - name: Make symbolic link
+      shell: ln -fs /vagrant/public/ /var/www/app
+    
+    - name: Set virtual host for phpmyadmin
+      template:
+        src: ./templates/vhost.conf.j2
+        dest: /etc/httpd/conf.d/vhost.conf
+        owner: apache
+        group: apache
+        mode: 0755
+
     - name: Auto restart apache
       service:
         name: httpd
         state: restarted
-        enabled: yes
-    - name: start mysql
-      service:
-        name: mysqld
-        state: started
         enabled: yes

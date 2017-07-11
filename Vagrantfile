@@ -7,6 +7,10 @@ Vagrant.configure(2) do |config|
     config.cache.scope = :box
   end
 
+  config.vm.synced_folder ".", "/vagrant",
+     id: "core",
+     :nfs => true,
+     :mount_options => ['nolock,vers=3,udp,noatime']
 
   config.vm.box = "wate/centos-7"
   config.vm.define 'centos7' do |centos7|

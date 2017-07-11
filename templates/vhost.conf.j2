@@ -1,0 +1,16 @@
+<Directory "/var/www/">
+    AllowOverride All
+</Directory>
+
+<VirtualHost *:80>
+    DocumentRoot /var/www/app
+    ServerName app.dev
+</VirtualHost>
+
+<VirtualHost *:80>
+   DocumentRoot /var/www/phpmyadmin
+   ServerName phpmyadmin.dev
+   ServerAdmin webmaster@virtual.host
+   ErrorLog logs/virtual.host-error_log
+   CustomLog logs/virtual.host-access_log combined
+</VirtualHost>
